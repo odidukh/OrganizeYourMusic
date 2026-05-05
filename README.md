@@ -2,6 +2,8 @@
 
 Organize your Spotify library by decade, genre, duration, and popularity. Save any filtered view as a new Spotify playlist.
 
+**Live:** https://odidukh.github.io/OrganizeYourMusic/
+
 ## Local development
 
 ```bash
