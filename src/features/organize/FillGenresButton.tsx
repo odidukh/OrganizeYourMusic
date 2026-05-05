@@ -11,9 +11,15 @@ import {
 import { buildWhitelist } from '@/domain/genreWhitelist'
 import type { Track } from '@/domain/track'
 
+export type LastRun = {
+  tracks: Track[]
+  previousByTrackId: Map<string, Set<string>>
+}
+
 type Props = {
   tracks: Track[]
   onTracksUpdate: (next: Track[]) => void
+  onLastRunChange?: (run: LastRun | null) => void
 }
 
 type ButtonState =
@@ -21,7 +27,7 @@ type ButtonState =
   | { kind: 'running'; controller: AbortController; progress: InferenceProgress }
   | { kind: 'done'; filled: number; remaining: number }
 
-export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
+export function FillGenresButton({ tracks, onTracksUpdate, onLastRunChange }: Props) {
   const [state, setState] = useState<ButtonState>({ kind: 'idle' })
   const tracksRef = useRef(tracks)
   tracksRef.current = tracks
@@ -73,6 +79,7 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
     const controller = new AbortController()
     const initial: InferenceProgress = { done: 0, total: 0 }
     setState({ kind: 'running', controller, progress: initial })
+    onLastRunChange?.(null)
 
     const current = tracksRef.current
     const candidates = candidateArtistIds(current)
@@ -81,6 +88,9 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
       setState({ kind: 'done', filled: 0, remaining: 0 })
       return
     }
+
+    const previousByTrackId = new Map<string, Set<string>>()
+    for (const t of current) previousByTrackId.set(t.id, new Set(t.inferredGenres))
 
     const libraryGenres: string[] = []
     for (const t of current) for (const g of t.genres) libraryGenres.push(g)
@@ -99,24 +109,23 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
       })
       const next = applyInference(current, result.perArtist)
       onTracksUpdate(next)
-      const filled = next.reduce(
-        (n, t, i) =>
-          t.inferredGenres.length > 0 && current[i].inferredGenres.length === 0
-            ? n + 1
-            : n,
-        0
-      )
+      const filledTracks = diffFilled(next, previousByTrackId)
       const remaining = next.reduce(
         (n, t) => (t.genres.length === 0 && t.inferredGenres.length === 0 ? n + 1 : n),
         0
       )
-      setState({ kind: 'done', filled, remaining })
-      toast.success(`Filled ${filled} tracks. ${remaining} still unknown.`)
+      setState({ kind: 'done', filled: filledTracks.length, remaining })
+      onLastRunChange?.({ tracks: filledTracks, previousByTrackId })
+      toast.success(`Filled ${filledTracks.length} tracks. ${remaining} still unknown.`)
     } catch (err) {
       const partial = applyInference(current, await readPerArtistFromCache(candidates))
       onTracksUpdate(partial)
+      const filledTracks = diffFilled(partial, previousByTrackId)
+      if (filledTracks.length > 0) {
+        onLastRunChange?.({ tracks: filledTracks, previousByTrackId })
+      }
       if (err instanceof LastfmAbortError) {
-        toast.message('Cancelled. Saved partial progress.')
+        toast.message(`Cancelled. ${filledTracks.length} tracks enriched before stop.`)
       } else if (err instanceof LastfmFatalError) {
         toast.error(err.message)
       } else {
@@ -125,6 +134,16 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
       setState({ kind: 'idle' })
     }
   }
+}
+
+function diffFilled(
+  next: Track[],
+  previousByTrackId: ReadonlyMap<string, ReadonlySet<string>>
+): Track[] {
+  return next.filter((t) => {
+    const prev = previousByTrackId.get(t.id) ?? new Set<string>()
+    return t.inferredGenres.some((g) => !prev.has(g))
+  })
 }
 
 async function readPerArtistFromCache(

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Charts } from './Charts'
 import { TrackTable } from './TrackTable'
 import { SavePlaylistDialog } from './SavePlaylistDialog'
-import { FillGenresButton } from './FillGenresButton'
+import { FillGenresButton, type LastRun } from './FillGenresButton'
+import { LastRunTable } from './LastRunTable'
 import { FilterChip } from './FilterChip'
 import { useFilterUrlSync } from './useFilterUrlSync'
 import { sourceLabel, type Source } from '@/domain/sources'
@@ -40,6 +41,7 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTrac
   const [state, setState] = useState<FilterState>(emptyFilterState)
   const [search, setSearch] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
+  const [lastRun, setLastRun] = useState<LastRun | null>(null)
 
   const sourceKey = useMemo(() => sourceKeyOf(source), [source])
 
@@ -165,7 +167,11 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTrac
               Showing {filteredTracks.length.toLocaleString()} of {tracks.length.toLocaleString()}
             </span>
             <div className="flex gap-2">
-              <FillGenresButton tracks={tracks} onTracksUpdate={onTracksUpdate} />
+              <FillGenresButton
+                tracks={tracks}
+                onTracksUpdate={onTracksUpdate}
+                onLastRunChange={setLastRun}
+              />
               <Button
                 variant="outline"
                 onClick={async () => {
@@ -187,6 +193,14 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTrac
           </div>
         </div>
       </div>
+
+      {lastRun && lastRun.tracks.length > 0 && (
+        <LastRunTable
+          tracks={lastRun.tracks}
+          previousByTrackId={lastRun.previousByTrackId}
+          onDismiss={() => setLastRun(null)}
+        />
+      )}
 
       {saveOpen && (
         <SavePlaylistDialog
