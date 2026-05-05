@@ -58,11 +58,17 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenSet> {
     code_verifier: verifier,
   })
 
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
+  let res: Response
+  try {
+    res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    })
+  } finally {
+    // Verifier is single-use per RFC 7636; drop it whether or not the fetch succeeded.
+    localStorage.removeItem(VERIFIER_KEY)
+  }
 
   if (!res.ok) {
     const text = await res.text()
@@ -70,7 +76,6 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenSet> {
   }
 
   const json = await res.json()
-  localStorage.removeItem(VERIFIER_KEY)
   const tokens: TokenSet = {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
@@ -95,6 +100,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenSet
 
   if (!res.ok) {
     const text = await res.text()
+    clearRefreshToken()
     throw new Error(`Refresh failed (${res.status}): ${text}`)
   }
 
