@@ -117,13 +117,29 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
         </div>
         <div className="flex flex-col h-[70vh] min-w-0">
           <TrackTable tracks={filteredTracks} search={search} onSearchChange={setSearch} />
-          <div className="flex items-center justify-between pt-3 mt-3 border-t">
+          <div className="flex items-center justify-between pt-3 mt-3 border-t gap-2">
             <span className="text-sm text-muted-foreground">
               Showing {filteredTracks.length.toLocaleString()} of {tracks.length.toLocaleString()}
             </span>
-            <Button onClick={() => setSaveOpen(true)} disabled={filteredTracks.length === 0}>
-              Save filtered view as playlist
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href)
+                    toast.success('Link copied')
+                  } catch {
+                    toast.error('Could not copy link')
+                  }
+                }}
+                disabled={state.filters.length === 0}
+              >
+                Copy link
+              </Button>
+              <Button onClick={() => setSaveOpen(true)} disabled={filteredTracks.length === 0}>
+                Save filtered view as playlist
+              </Button>
+            </div>
           </div>
         </div>
       </div>
