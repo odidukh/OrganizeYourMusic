@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Charts } from './Charts'
 import { TrackTable } from './TrackTable'
 import { SavePlaylistDialog } from './SavePlaylistDialog'
 import { FilterChip } from './FilterChip'
+import { useFilterUrlSync } from './useFilterUrlSync'
 import { sourceLabel, type Source } from '@/domain/sources'
 import {
   emptyFilterState,
@@ -32,6 +34,16 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
   const [state, setState] = useState<FilterState>(emptyFilterState)
   const [search, setSearch] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
+
+  const sourceKey = useMemo(() => sourceKeyOf(source), [source])
+
+  useFilterUrlSync({
+    sourceKey,
+    state,
+    onRestore: setState,
+    onRestoreFailure: () =>
+      toast.warning("Couldn't restore filters from link"),
+  })
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -126,4 +138,19 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
       )}
     </div>
   )
+}
+
+function sourceKeyOf(source: Source): string {
+  switch (source.type) {
+    case 'saved':
+      return 'saved'
+    case 'added':
+      return 'added'
+    case 'follow':
+      return 'follow'
+    case 'all':
+      return 'all'
+    case 'playlist':
+      return `playlist:${source.id}`
+  }
 }
