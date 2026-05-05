@@ -8,6 +8,7 @@ import { FilterChip } from './FilterChip'
 import { useFilterUrlSync } from './useFilterUrlSync'
 import { sourceLabel, type Source } from '@/domain/sources'
 import {
+  clearAll,
   emptyFilterState,
   matchesFilters,
   removeFilter,
@@ -116,7 +117,18 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
           />
         </div>
         <div className="flex flex-col h-[70vh] min-w-0">
-          <TrackTable tracks={filteredTracks} search={search} onSearchChange={setSearch} />
+          {filteredTracks.length === 0 && state.filters.length > 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded border border-dashed text-center p-6">
+              <p className="text-sm text-muted-foreground">
+                No tracks match these filters.
+              </p>
+              <Button variant="outline" onClick={() => setState(clearAll())}>
+                Clear all filters
+              </Button>
+            </div>
+          ) : (
+            <TrackTable tracks={filteredTracks} search={search} onSearchChange={setSearch} />
+          )}
           <div className="flex items-center justify-between pt-3 mt-3 border-t gap-2">
             <span className="text-sm text-muted-foreground">
               Showing {filteredTracks.length.toLocaleString()} of {tracks.length.toLocaleString()}
