@@ -5,7 +5,8 @@ import { LoadingScreen } from '@/features/loading/LoadingScreen'
 import { OrganizeScreen } from '@/features/organize/OrganizeScreen'
 import { useAuth } from '@/auth/useAuth'
 import { useCurrentUser } from '@/api/queries'
-import type { AppState } from '@/state/appState'
+import { Button } from '@/components/ui/button'
+import type { AppState, SpotifyUser } from '@/state/appState'
 import type { Source } from '@/domain/sources'
 import { fetchTracksForSource } from '@/domain/sources'
 import './App.css'
@@ -30,9 +31,7 @@ export default function App() {
     }
   }, [status, userQuery.data])
 
-  function handleOrganize(source: Source) {
-    if (state.kind !== 'picking') return
-    const user = state.user
+  function startOrganize(source: Source, user: SpotifyUser) {
     const abort = new AbortController()
     setState({
       kind: 'loading',
@@ -56,9 +55,14 @@ export default function App() {
         setState({
           kind: 'error',
           message: err.message ?? 'Failed to fetch tracks.',
-          retry: () => handleOrganize(source),
+          retry: () => startOrganize(source, user),
         })
       })
+  }
+
+  function handleOrganize(source: Source) {
+    if (state.kind !== 'picking') return
+    startOrganize(source, state.user)
   }
 
   function handleCancel() {
@@ -96,7 +100,18 @@ export default function App() {
   }
 
   if (state.kind === 'error') {
-    return <LoginScreen onLogin={state.retry ?? login} errorBanner={state.message} />
+    return (
+      <div className="container px-4 py-32 mx-auto max-w-md text-center">
+        <h2 className="mb-4 text-2xl font-semibold">Something went wrong</h2>
+        <p className="mb-6 text-sm text-muted-foreground">{state.message}</p>
+        <div className="flex justify-center gap-2">
+          {state.retry && <Button onClick={state.retry}>Retry</Button>}
+          <Button variant="outline" onClick={() => setState({ kind: 'unauth' })}>
+            Back to login
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return <LoginScreen onLogin={login} />
