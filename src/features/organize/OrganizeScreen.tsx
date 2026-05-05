@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Charts } from './Charts'
 import { TrackTable } from './TrackTable'
 import { SavePlaylistDialog } from './SavePlaylistDialog'
+import { FilterChip } from './FilterChip'
 import { sourceLabel, type Source } from '@/domain/sources'
 import {
   emptyFilterState,
   matchesFilters,
   removeFilter,
+  removeValue,
   selectedValues as selectedFor,
+  setMode,
   toggleValue,
   type FilterKind,
   type FilterState,
@@ -68,16 +70,13 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
       {state.filters.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
           {state.filters.map((f) => (
-            <Badge
+            <FilterChip
               key={f.kind}
-              variant="secondary"
-              className="cursor-pointer"
-              onClick={() => onRemoveFilter(f.kind)}
-            >
-              {f.kind}
-              {f.mode === 'exclude' ? ' ≠ ' : ': '}
-              {f.values.join(', ')} ×
-            </Badge>
+              filter={f}
+              onSetMode={(kind, mode) => setState((p) => setMode(p, kind, mode))}
+              onRemoveValue={(kind, v) => setState((p) => removeValue(p, kind, v))}
+              onRemove={onRemoveFilter}
+            />
           ))}
         </div>
       )}
