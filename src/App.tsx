@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { LoginScreen } from '@/features/login/LoginScreen'
 import { PickerScreen } from '@/features/pick/PickerScreen'
 import { LoadingScreen } from '@/features/loading/LoadingScreen'
+import { OrganizeScreen } from '@/features/organize/OrganizeScreen'
 import { useAuth } from '@/auth/useAuth'
 import { useCurrentUser } from '@/api/queries'
 import type { AppState } from '@/state/appState'
@@ -76,15 +77,21 @@ export default function App() {
 
   if (state.kind === 'organizing') {
     return (
-      <div className="container px-4 py-16 mx-auto max-w-2xl">
-        <h2 className="mb-4 text-2xl font-semibold">Loaded {state.tracks.length} tracks</h2>
-        {state.truncated && (
-          <p className="mb-4 text-sm text-amber-600">
-            Showing first 5,000 tracks. Pick a smaller source for full coverage.
-          </p>
-        )}
-        <pre className="text-xs">{JSON.stringify(state.tracks.slice(0, 3), null, 2)}</pre>
-      </div>
+      <OrganizeScreen
+        source={state.source}
+        tracks={state.tracks}
+        truncated={state.truncated}
+        onBack={() => setState({ kind: 'picking', user: state.user })}
+        onSave={(filtered, _name) =>
+          setState({
+            kind: 'savingPlaylist',
+            source: state.source,
+            user: state.user,
+            tracks: filtered,
+            truncated: state.truncated,
+          })
+        }
+      />
     )
   }
 
