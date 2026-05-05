@@ -61,7 +61,7 @@ export function FillGenresButton({ tracks, onTracksUpdate, onLastRunChange }: Pr
   if (state.kind === 'done') {
     return (
       <Button variant="outline" disabled>
-        Filled {state.filled} ✓
+        {state.filled > 0 ? `Filled ${state.filled} ✓` : 'No new genres'}
       </Button>
     )
   }
@@ -136,11 +136,27 @@ export function FillGenresButton({ tracks, onTracksUpdate, onLastRunChange }: Pr
         (n, t) => (t.genres.length === 0 && t.inferredGenres.length === 0 ? n + 1 : n),
         0
       )
+      const otherResolved = next.reduce((n, t, i) => {
+        const src = current[i]
+        const prevInferred = previousByTrackId.get(t.id)?.size ?? 0
+        return src.genres.length === 0 && prevInferred === 0 && t.inferredGenres.length > 0
+          ? n + 1
+          : n
+      }, 0)
       setState({ kind: 'done', filled: filledTracks.length, remaining })
       liveFilled = filledTracks
       stillRunning = false
       emit()
-      toast.success(`Filled ${filledTracks.length} tracks. ${remaining} still unknown.`)
+      if (filledTracks.length > 0) {
+        const otherSuffix = otherResolved > 0 ? ` (${otherResolved} previously uncategorized)` : ''
+        toast.success(
+          `Enriched ${filledTracks.length} tracks${otherSuffix}. ${remaining} still unknown.`
+        )
+      } else {
+        toast.message(
+          `Looked up ${result.fetched} artists. No new genres added — Last.fm tags matched existing Spotify ones or weren't recognized. ${remaining} still unknown.`
+        )
+      }
     } catch (err) {
       const partial = applyInference(current, await readPerArtistFromCache(candidates))
       onTracksUpdate(partial)
