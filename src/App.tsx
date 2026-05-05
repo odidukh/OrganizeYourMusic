@@ -87,6 +87,11 @@ export default function App() {
         tracks={state.tracks}
         truncated={state.truncated}
         onBack={() => setState({ kind: 'picking', user: state.user })}
+        onTracksUpdate={(nextTracks) =>
+          setState((prev) =>
+            prev.kind === 'organizing' ? { ...prev, tracks: nextTracks } : prev
+          )
+        }
       />
     )
   }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Charts } from './Charts'
 import { TrackTable } from './TrackTable'
 import { SavePlaylistDialog } from './SavePlaylistDialog'
+import { FillGenresButton } from './FillGenresButton'
 import { FilterChip } from './FilterChip'
 import { useFilterUrlSync } from './useFilterUrlSync'
 import { sourceLabel, type Source } from '@/domain/sources'
@@ -30,9 +31,10 @@ type Props = {
   tracks: Track[]
   truncated: boolean
   onBack: () => void
+  onTracksUpdate: (next: Track[]) => void
 }
 
-export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Props) {
+export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTracksUpdate }: Props) {
   const [state, setState] = useState<FilterState>(emptyFilterState)
   const [search, setSearch] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
@@ -148,6 +150,7 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
               Showing {filteredTracks.length.toLocaleString()} of {tracks.length.toLocaleString()}
             </span>
             <div className="flex gap-2">
+              <FillGenresButton tracks={tracks} onTracksUpdate={onTracksUpdate} />
               <Button
                 variant="outline"
                 onClick={async () => {
