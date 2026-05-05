@@ -155,7 +155,7 @@ Located in `src/domain/filters.ts`:
 | File | Changes |
 |---|---|
 | `src/features/organize/OrganizeScreen.tsx` | Replace `Filter[]` flat state with `FilterState`. Wire `useFilterUrlSync`. Replace inline chip rendering with `FilterChip`. Pass full `tracks` + selection to Charts. Add "Copy link" button. Lift search state into filters via `upsertSearch`. |
-| `src/features/organize/Charts.tsx` | Export expanded `FilterKind` (adds `'search'`, though search has no chart). Accept `tracks` (full) + `selection: Record<FilterKind, string[]>` + `filteredCountsByKind`. Replace `onSelect` with `onToggle(kind, label)`. Render selected `Cell`s with accent fill; non-selected with default. Tooltip shows `filtered/total`. |
+| `src/features/organize/Charts.tsx` | Import `FilterKind` from `domain/filters.ts` (remove its own export — single source of truth). `'search'` has no chart, so `onToggle` never fires for it; selection prop only carries chart-relevant kinds. Accept `tracks` (full) + `selection: Partial<Record<FilterKind, string[]>>` + `filteredCountsByKind`. Replace `onSelect` with `onToggle(kind, label)`. Render selected `Cell`s with accent fill; non-selected with default. Tooltip shows `filtered/total`. |
 | `src/features/organize/TrackTable.tsx` | Search input remains, but `onSearchChange` now upserts a search filter upstream. Internal table filtering removed — receives already-filtered tracks. (Existing prop signature largely preserved.) |
 | `src/domain/bucketing.ts` | No change expected. Pure utilities reused as-is. |
 
