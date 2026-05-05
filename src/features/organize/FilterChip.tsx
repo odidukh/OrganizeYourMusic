@@ -8,15 +8,17 @@ const VISIBLE_VALUES = 2
 
 type Props = {
   filter: Filter
+  inferredOnlyValues: ReadonlySet<string>
   onSetMode: (kind: FilterKind, mode: FilterMode) => void
   onRemoveValue: (kind: FilterKind, value: string) => void
   onRemove: (kind: FilterKind) => void
 }
 
-export function FilterChip({ filter, onSetMode, onRemoveValue, onRemove }: Props) {
+export function FilterChip({ filter, inferredOnlyValues, onSetMode, onRemoveValue, onRemove }: Props) {
   const head = filter.values.slice(0, VISIBLE_VALUES).join(', ')
   const overflow = filter.values.length - VISIBLE_VALUES
   const summary = overflow > 0 ? `${head}, +${overflow}` : head
+  const hasInferred = filter.values.some((v) => inferredOnlyValues.has(v))
   const sep = filter.mode === 'exclude' ? ' ≠ ' : ': '
   const variant = filter.mode === 'exclude' ? 'destructive' : 'secondary'
 
@@ -28,6 +30,7 @@ export function FilterChip({ filter, onSetMode, onRemoveValue, onRemove }: Props
             {filter.kind}
             {sep}
             {summary}
+            {hasInferred && <span className="ml-1" title="Includes inferred values">✨</span>}
           </Badge>
         </PopoverTrigger>
         <button
@@ -66,7 +69,12 @@ export function FilterChip({ filter, onSetMode, onRemoveValue, onRemove }: Props
         <ul className="max-h-48 space-y-1 overflow-auto">
           {filter.values.map((v) => (
             <li key={v} className="flex items-center justify-between gap-2 text-sm">
-              <span className="truncate">{v}</span>
+              <span className="truncate">
+                {v}
+                {inferredOnlyValues.has(v) && (
+                  <span className="ml-1" title="Inferred from Last.fm">✨</span>
+                )}
+              </span>
               <button
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => onRemoveValue(filter.kind, v)}

@@ -25,6 +25,8 @@ import { topGenres } from '@/domain/bucketing'
 import type { Track } from '@/domain/track'
 import type { SpotifyUser } from '@/state/appState'
 
+const EMPTY_SET: ReadonlySet<string> = new Set()
+
 type Props = {
   user: SpotifyUser
   source: Source
@@ -79,6 +81,18 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTrac
     [state]
   )
 
+  const inferredOnlyGenres = useMemo(() => {
+    const real = new Set<string>()
+    const inferred = new Set<string>()
+    for (const t of tracks) {
+      for (const g of t.genres) real.add(g)
+      for (const g of t.inferredGenres) inferred.add(g)
+    }
+    const out = new Set<string>()
+    for (const g of inferred) if (!real.has(g)) out.add(g)
+    return out
+  }, [tracks])
+
   function onToggle(kind: FilterKind, value: string) {
     setState((prev) => toggleValue(prev, kind, value))
   }
@@ -115,6 +129,7 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTrac
             <FilterChip
               key={f.kind}
               filter={f}
+              inferredOnlyValues={f.kind === 'genre' ? inferredOnlyGenres : EMPTY_SET}
               onSetMode={(kind, mode) => setState((p) => setMode(p, kind, mode))}
               onRemoveValue={(kind, v) => setState((p) => removeValue(p, kind, v))}
               onRemove={onRemoveFilter}
