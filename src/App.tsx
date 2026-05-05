@@ -82,19 +82,11 @@ export default function App() {
   if (state.kind === 'organizing') {
     return (
       <OrganizeScreen
+        user={state.user}
         source={state.source}
         tracks={state.tracks}
         truncated={state.truncated}
         onBack={() => setState({ kind: 'picking', user: state.user })}
-        onSave={(filtered, _name) =>
-          setState({
-            kind: 'savingPlaylist',
-            source: state.source,
-            user: state.user,
-            tracks: filtered,
-            truncated: state.truncated,
-          })
-        }
       />
     )
   }

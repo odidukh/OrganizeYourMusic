@@ -13,7 +13,6 @@ export type AppState =
   | { kind: 'picking'; user: SpotifyUser }
   | { kind: 'loading'; source: Source; user: SpotifyUser; progress: ProgressEvent; abort: AbortController }
   | { kind: 'organizing'; source: Source; user: SpotifyUser; tracks: Track[]; truncated: boolean }
-  | { kind: 'savingPlaylist'; source: Source; user: SpotifyUser; tracks: Track[]; truncated: boolean }
   | { kind: 'error'; message: string; retry?: () => void }
 
 export type StateSetter = (s: AppState) => void

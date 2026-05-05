@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Charts, type FilterKind } from './Charts'
 import { TrackTable } from './TrackTable'
+import { SavePlaylistDialog } from './SavePlaylistDialog'
 import { sourceLabel, type Source } from '@/domain/sources'
 import {
   decadeForYear,
@@ -10,20 +11,22 @@ import {
   popularityBucketLabel,
 } from '@/domain/bucketing'
 import type { Track } from '@/domain/track'
+import type { SpotifyUser } from '@/state/appState'
 
 type Filter = { kind: FilterKind; label: string }
 
 type Props = {
+  user: SpotifyUser
   source: Source
   tracks: Track[]
   truncated: boolean
-  onSave: (filteredTracks: Track[], summary: string) => void
   onBack: () => void
 }
 
-export function OrganizeScreen({ source, tracks, truncated, onSave, onBack }: Props) {
+export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Props) {
   const [filters, setFilters] = useState<Filter[]>([])
   const [search, setSearch] = useState('')
+  const [saveOpen, setSaveOpen] = useState(false)
 
   const filteredTracks = useMemo(() => {
     if (filters.length === 0) return tracks
@@ -78,12 +81,21 @@ export function OrganizeScreen({ source, tracks, truncated, onSave, onBack }: Pr
             <span className="text-sm text-muted-foreground">
               Showing {filteredTracks.length.toLocaleString()} of {tracks.length.toLocaleString()}
             </span>
-            <Button onClick={() => onSave(filteredTracks, defaultName)} disabled={filteredTracks.length === 0}>
+            <Button onClick={() => setSaveOpen(true)} disabled={filteredTracks.length === 0}>
               Save filtered view as playlist
             </Button>
           </div>
         </div>
       </div>
+
+      {saveOpen && (
+        <SavePlaylistDialog
+          user={user}
+          tracks={filteredTracks}
+          defaultName={defaultName}
+          onClose={() => setSaveOpen(false)}
+        />
+      )}
     </div>
   )
 }
