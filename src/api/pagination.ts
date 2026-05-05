@@ -61,8 +61,8 @@ export async function paginate<T>(
     }
   }
 
-  const workers = Array.from({ length: Math.min(CONCURRENCY, offsets.length) }, worker)
-  await Promise.all(workers)
+  const workers = Array.from({ length: Math.min(CONCURRENCY, offsets.length) }, () => worker())
+  await settleAllOrThrow(workers, signal)
 
   const all = first.items.concat(...results.filter(Boolean))
   return {
@@ -101,7 +101,20 @@ export async function batchedFetch<TResult>(
     }
   }
 
-  const workers = Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, worker)
-  await Promise.all(workers)
+  const workers = Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, () => worker())
+  await settleAllOrThrow(workers, signal)
   return results
+}
+
+/**
+ * Await all workers; if any rejected, re-throw the first reason after the rest settle.
+ * If the signal aborted, throw an AbortError so callers can't mistake a partial result for success.
+ */
+async function settleAllOrThrow(workers: Promise<unknown>[], signal?: AbortSignal): Promise<void> {
+  const settled = await Promise.allSettled(workers)
+  const failure = settled.find((s): s is PromiseRejectedResult => s.status === 'rejected')
+  if (failure) throw failure.reason
+  if (signal?.aborted) {
+    throw signal.reason instanceof Error ? signal.reason : new DOMException('Aborted', 'AbortError')
+  }
 }
