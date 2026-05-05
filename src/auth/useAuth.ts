@@ -16,6 +16,18 @@ type AuthStatus =
   | { kind: 'unauth' }
   | { kind: 'error'; message: string }
 
+// Module-level: survive StrictMode's mount→cleanup→mount cycle so the
+// auth code is only exchanged once.
+let inflightCode: string | null = null
+let inflightExchange: ReturnType<typeof exchangeCodeForTokens> | null = null
+
+function exchangeOnce(code: string) {
+  if (inflightCode === code && inflightExchange) return inflightExchange
+  inflightCode = code
+  inflightExchange = exchangeCodeForTokens(code)
+  return inflightExchange
+}
+
 export function useAuth() {
   const [status, setStatus] = useState<AuthStatus>({ kind: 'idle' })
 
@@ -41,7 +53,7 @@ export function useAuth() {
 
     if (code) {
       setStatus({ kind: 'authenticating' })
-      exchangeCodeForTokens(code)
+      exchangeOnce(code)
         .then((tokens) => {
           setAccessToken(tokens.accessToken)
           stripCodeFromUrl()
