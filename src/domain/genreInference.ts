@@ -21,12 +21,9 @@ export type InferenceParams = {
   onProgress?: (p: InferenceProgress) => void
 }
 
-// Computes the candidate set: artistIds that appear on at least one track
-// whose genres array is empty.
 export function candidateArtistIds(tracks: Track[]): string[] {
   const ids = new Set<string>()
   for (const t of tracks) {
-    if (t.genres.length > 0) continue
     for (const id of t.artistIds) ids.add(id)
   }
   return Array.from(ids)

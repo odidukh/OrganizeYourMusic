@@ -40,11 +40,6 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
     )
   }
 
-  const noGenreCount = tracks.reduce(
-    (n, t) => (t.genres.length === 0 && t.inferredGenres.length === 0 ? n + 1 : n),
-    0
-  )
-
   if (state.kind === 'running') {
     return (
       <Button
@@ -67,9 +62,8 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
   return (
     <Button
       variant="outline"
-      disabled={noGenreCount === 0}
       onClick={() => start()}
-      title={noGenreCount === 0 ? 'No tracks need inference' : `${noGenreCount} tracks have no genre`}
+      title="Enrich genres via Last.fm"
     >
       Fill missing genres
     </Button>
@@ -83,6 +77,7 @@ export function FillGenresButton({ tracks, onTracksUpdate }: Props) {
     const current = tracksRef.current
     const candidates = candidateArtistIds(current)
     if (candidates.length === 0) {
+      toast.message('No artists to process')
       setState({ kind: 'done', filled: 0, remaining: 0 })
       return
     }
