@@ -20,6 +20,7 @@ import {
   type FilterKind,
   type FilterState,
 } from '@/domain/filters'
+import { topGenres } from '@/domain/bucketing'
 import type { Track } from '@/domain/track'
 import type { SpotifyUser } from '@/state/appState'
 
@@ -56,9 +57,24 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
     return () => clearTimeout(t)
   }, [search])
 
+  const matchCtx = useMemo(() => ({ topGenres: topGenres(tracks) }), [tracks])
+
   const filteredTracks = useMemo(
-    () => (state.filters.length === 0 ? tracks : tracks.filter((t) => matchesFilters(t, state.filters))),
-    [tracks, state]
+    () =>
+      state.filters.length === 0
+        ? tracks
+        : tracks.filter((t) => matchesFilters(t, state.filters, matchCtx)),
+    [tracks, state, matchCtx]
+  )
+
+  const selection = useMemo(
+    () => ({
+      decade: selectedFor(state, 'decade'),
+      genre: selectedFor(state, 'genre'),
+      duration: selectedFor(state, 'duration'),
+      popularity: selectedFor(state, 'popularity'),
+    }),
+    [state]
   )
 
   function onToggle(kind: FilterKind, value: string) {
@@ -110,12 +126,7 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
           <Charts
             tracks={tracks}
             filtered={filteredTracks}
-            selection={{
-              decade: selectedFor(state, 'decade'),
-              genre: selectedFor(state, 'genre'),
-              duration: selectedFor(state, 'duration'),
-              popularity: selectedFor(state, 'popularity'),
-            }}
+            selection={selection}
             onToggle={onToggle}
           />
         </div>

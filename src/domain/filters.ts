@@ -112,23 +112,29 @@ export function upsertSearch(state: FilterState, query: string): FilterState {
   }
 }
 
-export function matchesFilters(track: Track, filters: Filter[]): boolean {
-  return filters.every((f) => matchesFilter(track, f))
+export type MatchContext = {
+  topGenres: ReadonlySet<string>
 }
 
-function matchesFilter(track: Track, filter: Filter): boolean {
-  const matched = matchValue(track, filter)
+export function matchesFilters(
+  track: Track,
+  filters: Filter[],
+  ctx?: MatchContext
+): boolean {
+  return filters.every((f) => matchesFilter(track, f, ctx))
+}
+
+function matchesFilter(track: Track, filter: Filter, ctx?: MatchContext): boolean {
+  const matched = matchValue(track, filter, ctx)
   return filter.mode === 'include' ? matched : !matched
 }
 
-function matchValue(track: Track, filter: Filter): boolean {
+function matchValue(track: Track, filter: Filter, ctx?: MatchContext): boolean {
   switch (filter.kind) {
     case 'decade':
       return filter.values.includes(decadeForYear(track.album.releaseYear))
     case 'genre':
-      return filter.values.some((v) =>
-        v === 'other' ? track.genres.length === 0 : track.genres.includes(v)
-      )
+      return filter.values.some((v) => matchGenreValue(track, v, ctx))
     case 'duration':
       return filter.values.includes(durationBucketLabel(track.durationMs))
     case 'popularity':
@@ -140,4 +146,15 @@ function matchValue(track: Track, filter: Filter): boolean {
       return track.artistNames.some((a) => a.toLowerCase().includes(q))
     }
   }
+}
+
+function matchGenreValue(track: Track, value: string, ctx?: MatchContext): boolean {
+  if (value === '(no genre)') return track.genres.length === 0
+  if (value === 'other') {
+    if (track.genres.length === 0) return false
+    const top = ctx?.topGenres
+    if (!top) return false
+    return track.genres.every((g) => !top.has(g))
+  }
+  return track.genres.includes(value)
 }

@@ -29,6 +29,14 @@ export function decadeForYear(y: number): string {
   return `${Math.floor(y / 10) * 10}s`
 }
 
+export function topGenres(tracks: Track[], topN = 15): Set<string> {
+  return new Set(
+    bucketByGenre(tracks, topN)
+      .filter((b) => b.label !== 'other' && b.label !== '(no genre)')
+      .map((b) => b.label)
+  )
+}
+
 export function bucketByGenre(tracks: Track[], topN = 15): Bucket[] {
   const counts = new Map<string, number>()
   for (const t of tracks) {
