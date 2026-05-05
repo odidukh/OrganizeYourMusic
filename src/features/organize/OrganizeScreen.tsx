@@ -1,19 +1,20 @@
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Charts, type FilterKind } from './Charts'
+import { Charts } from './Charts'
 import { TrackTable } from './TrackTable'
 import { SavePlaylistDialog } from './SavePlaylistDialog'
 import { sourceLabel, type Source } from '@/domain/sources'
 import {
-  decadeForYear,
-  durationBucketLabel,
-  popularityBucketLabel,
-} from '@/domain/bucketing'
+  emptyFilterState,
+  matchesFilters,
+  removeFilter,
+  toggleValue,
+  type FilterKind,
+  type FilterState,
+} from '@/domain/filters'
 import type { Track } from '@/domain/track'
 import type { SpotifyUser } from '@/state/appState'
-
-type Filter = { kind: FilterKind; label: string }
 
 type Props = {
   user: SpotifyUser
@@ -24,29 +25,31 @@ type Props = {
 }
 
 export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Props) {
-  const [filters, setFilters] = useState<Filter[]>([])
+  const [state, setState] = useState<FilterState>(emptyFilterState)
   const [search, setSearch] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
 
-  const filteredTracks = useMemo(() => {
-    if (filters.length === 0) return tracks
-    return tracks.filter((t) => filters.every((f) => matchesFilter(t, f)))
-  }, [tracks, filters])
+  const filteredTracks = useMemo(
+    () => (state.filters.length === 0 ? tracks : tracks.filter((t) => matchesFilters(t, state.filters))),
+    [tracks, state]
+  )
 
-  function addFilter(kind: FilterKind, label: string) {
-    setFilters((prev) => {
-      const without = prev.filter((f) => f.kind !== kind)
-      return [...without, { kind, label }]
-    })
+  function onToggle(kind: FilterKind, value: string) {
+    setState((prev) => toggleValue(prev, kind, value))
   }
 
-  function removeFilter(idx: number) {
-    setFilters((prev) => prev.filter((_, i) => i !== idx))
+  function onRemoveFilter(kind: FilterKind) {
+    setState((prev) => removeFilter(prev, kind))
   }
 
-  const filterSummary =
-    filters.length === 0 ? '' : ' — ' + filters.map((f) => f.label).join(', ')
-  const defaultName = `Organized: ${sourceLabel(source)}${filterSummary}`
+  const summary =
+    state.filters.length === 0
+      ? ''
+      : ' — ' +
+        state.filters
+          .map((f) => `${f.kind}${f.mode === 'exclude' ? '≠' : ':'}${f.values.join('/')}`)
+          .join(', ')
+  const defaultName = `Organized: ${sourceLabel(source)}${summary}`
 
   return (
     <div className="container px-4 py-8 mx-auto max-w-7xl">
@@ -61,11 +64,18 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
         <Button variant="ghost" onClick={onBack}>← Back</Button>
       </div>
 
-      {filters.length > 0 && (
+      {state.filters.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {filters.map((f, i) => (
-            <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => removeFilter(i)}>
-              {f.kind}: {f.label} ×
+          {state.filters.map((f) => (
+            <Badge
+              key={f.kind}
+              variant="secondary"
+              className="cursor-pointer"
+              onClick={() => onRemoveFilter(f.kind)}
+            >
+              {f.kind}
+              {f.mode === 'exclude' ? ' ≠ ' : ': '}
+              {f.values.join(', ')} ×
             </Badge>
           ))}
         </div>
@@ -73,7 +83,7 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[320px_minmax(0,1fr)]">
         <div className="min-w-0">
-          <Charts tracks={filteredTracks} onSelect={addFilter} />
+          <Charts tracks={filteredTracks} onSelect={onToggle} />
         </div>
         <div className="flex flex-col h-[70vh] min-w-0">
           <TrackTable tracks={filteredTracks} search={search} onSearchChange={setSearch} />
@@ -98,18 +108,4 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
       )}
     </div>
   )
-}
-
-function matchesFilter(t: Track, f: Filter): boolean {
-  switch (f.kind) {
-    case 'decade':
-      return decadeForYear(t.album.releaseYear) === f.label
-    case 'genre':
-      if (f.label === 'other') return t.genres.length === 0
-      return t.genres.includes(f.label)
-    case 'duration':
-      return durationBucketLabel(t.durationMs) === f.label
-    case 'popularity':
-      return popularityBucketLabel(t.popularity) === f.label
-  }
 }
