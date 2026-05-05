@@ -73,7 +73,7 @@ export async function paginate<T>(
 }
 
 /** Batch a list of ids into requests of `batchSize`, run with concurrency cap. */
-export async function batchedFetch<TItem, TResult>(
+export async function batchedFetch<TResult>(
   ids: string[],
   batchSize: number,
   fetchBatch: (chunk: string[]) => Promise<TResult>,
