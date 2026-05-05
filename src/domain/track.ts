@@ -10,6 +10,7 @@ export type Track = {
   explicit: boolean
   previewUrl: string | null
   genres: string[] // populated post artist enrichment
+  inferredGenres: string[] // populated post Last.fm inference; never includes values already in genres
   addedAt: string | null
 }
 
@@ -56,6 +57,7 @@ export function normalizeTrack(raw: RawTrack, addedAt: string | null = null): Tr
     explicit: raw.explicit,
     previewUrl: raw.preview_url,
     genres: [],
+    inferredGenres: [],
     addedAt,
   }
 }
