@@ -40,11 +40,12 @@ export function topGenres(tracks: Track[], topN = 15): Set<string> {
 export function bucketByGenre(tracks: Track[], topN = 15): Bucket[] {
   const counts = new Map<string, number>()
   for (const t of tracks) {
-    if (t.genres.length === 0) {
+    const merged = unionGenres(t)
+    if (merged.length === 0) {
       counts.set('(no genre)', (counts.get('(no genre)') ?? 0) + 1)
       continue
     }
-    for (const g of t.genres) {
+    for (const g of merged) {
       counts.set(g, (counts.get(g) ?? 0) + 1)
     }
   }
@@ -53,6 +54,12 @@ export function bucketByGenre(tracks: Track[], topN = 15): Bucket[] {
   const rest = sorted.slice(topN).reduce((sum, [, c]) => sum + c, 0)
   if (rest > 0) top.push({ label: 'other', count: rest })
   return top
+}
+
+function unionGenres(t: Track): string[] {
+  if (t.inferredGenres.length === 0) return t.genres
+  if (t.genres.length === 0) return t.inferredGenres
+  return Array.from(new Set([...t.genres, ...t.inferredGenres]))
 }
 
 const DURATION_BUCKETS: { label: string; minSec: number; maxSec: number }[] = [

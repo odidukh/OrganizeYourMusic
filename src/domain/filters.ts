@@ -149,12 +149,19 @@ function matchValue(track: Track, filter: Filter, ctx?: MatchContext): boolean {
 }
 
 function matchGenreValue(track: Track, value: string, ctx?: MatchContext): boolean {
-  if (value === '(no genre)') return track.genres.length === 0
+  const merged = unionTrackGenres(track)
+  if (value === '(no genre)') return merged.length === 0
   if (value === 'other') {
-    if (track.genres.length === 0) return false
+    if (merged.length === 0) return false
     const top = ctx?.topGenres
     if (!top) return false
-    return track.genres.every((g) => !top.has(g))
+    return merged.every((g) => !top.has(g))
   }
-  return track.genres.includes(value)
+  return merged.includes(value)
+}
+
+function unionTrackGenres(t: Track): string[] {
+  if (t.inferredGenres.length === 0) return t.genres
+  if (t.genres.length === 0) return t.inferredGenres
+  return Array.from(new Set([...t.genres, ...t.inferredGenres]))
 }
