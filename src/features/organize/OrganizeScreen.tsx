@@ -41,7 +41,10 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
   useFilterUrlSync({
     sourceKey,
     state,
-    onRestore: setState,
+    onRestore: (restored) => {
+      setState(restored)
+      setSearch(selectedFor(restored, 'search')[0] ?? '')
+    },
     onRestoreFailure: () =>
       toast.warning("Couldn't restore filters from link"),
   })
