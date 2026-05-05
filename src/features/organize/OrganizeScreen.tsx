@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Charts } from './Charts'
 import { TrackTable } from './TrackTable'
@@ -13,6 +13,7 @@ import {
   selectedValues as selectedFor,
   setMode,
   toggleValue,
+  upsertSearch,
   type FilterKind,
   type FilterState,
 } from '@/domain/filters'
@@ -31,6 +32,13 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
   const [state, setState] = useState<FilterState>(emptyFilterState)
   const [search, setSearch] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setState((prev) => upsertSearch(prev, search))
+    }, 150)
+    return () => clearTimeout(t)
+  }, [search])
 
   const filteredTracks = useMemo(
     () => (state.filters.length === 0 ? tracks : tracks.filter((t) => matchesFilters(t, state.filters))),

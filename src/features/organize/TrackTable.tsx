@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Input } from '@/components/ui/input'
 import type { Track } from '@/domain/track'
@@ -17,26 +17,10 @@ const ROW_HEIGHT = 40
 export function TrackTable({ tracks, search, onSearchChange }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [debouncedSearch, setDebouncedSearch] = useState(search)
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 200)
-    return () => clearTimeout(t)
-  }, [search])
-
-  const filtered = useMemo(() => {
-    if (!debouncedSearch.trim()) return tracks
-    const q = debouncedSearch.toLowerCase()
-    return tracks.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.artistNames.some((a) => a.toLowerCase().includes(q))
-    )
-  }, [tracks, debouncedSearch])
 
   const sorted = useMemo(() => {
-    if (!sortKey) return filtered
-    const arr = [...filtered]
+    if (!sortKey) return tracks
+    const arr = [...tracks]
     arr.sort((a, b) => {
       const av = pickSortValue(a, sortKey)
       const bv = pickSortValue(b, sortKey)
@@ -45,7 +29,7 @@ export function TrackTable({ tracks, search, onSearchChange }: Props) {
       return 0
     })
     return arr
-  }, [filtered, sortKey, sortDir])
+  }, [tracks, sortKey, sortDir])
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
