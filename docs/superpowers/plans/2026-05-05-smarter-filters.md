@@ -361,12 +361,13 @@ git commit -m "feat(filters): switch OrganizeScreen to FilterState with multi-se
 
 - [ ] **Step 1: Replace `Charts.tsx` contents**
 
+This rewrite uses recharts v3's per-datum `fill` pattern (each row carries its own `fill` field) rather than `<Cell>` children. `<Cell>` is `@deprecated` in recharts 3 — embedding `fill` per row eliminates the warning and is also cleaner.
+
 ```tsx
 import { useMemo } from 'react'
 import {
   Bar,
   BarChart,
-  Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -390,42 +391,59 @@ const PIE_COLORS = [
   '#1DB954', '#1ED760', '#5DADE2', '#F39C12', '#E74C3C',
   '#9B59B6', '#16A085', '#F1C40F', '#34495E', '#7F8C8D',
 ]
-const SELECTED_FILL = '#1DB954'
-const UNSELECTED_FILL = '#374151'
+const UNSELECTED_FILL = '#1f2937'
+const GENRE_FILL = '#1DB954'
+const DURATION_FILL = '#5DADE2'
+const POPULARITY_FILL = '#F39C12'
 
 type ChartKind = Exclude<FilterKind, 'search'>
 
 type Props = {
-  tracks: Track[]                        // full tracks (baseline)
-  filtered: Track[]                       // currently filtered tracks
+  tracks: Track[]
+  filtered: Track[]
   selection: Partial<Record<ChartKind, string[]>>
   onToggle: (kind: ChartKind, label: string) => void
 }
 
-type Row = { label: string; total: number; matched: number }
+type Row = { label: string; total: number; matched: number; fill: string }
 
 export function Charts({ tracks, filtered, selection, onToggle }: Props) {
   const decadeRows = useMemo(
-    () => mergeCounts(bucketByDecade(tracks), filtered, (t) => decadeForYear(t.album.releaseYear)),
-    [tracks, filtered]
+    () =>
+      withFills(
+        mergeCounts(bucketByDecade(tracks), filtered, (t) => decadeForYear(t.album.releaseYear)),
+        selection.decade ?? [],
+        (_r, i) => PIE_COLORS[i % PIE_COLORS.length]
+      ),
+    [tracks, filtered, selection.decade]
   )
   const genreRows = useMemo(
-    () => mergeGenreCounts(bucketByGenre(tracks, 15), filtered),
-    [tracks, filtered]
+    () =>
+      withFills(
+        mergeGenreCounts(bucketByGenre(tracks, 15), filtered),
+        selection.genre ?? [],
+        () => GENRE_FILL
+      ),
+    [tracks, filtered, selection.genre]
   )
   const durationRows = useMemo(
-    () => mergeCounts(bucketByDuration(tracks), filtered, (t) => durationBucketLabel(t.durationMs)),
-    [tracks, filtered]
+    () =>
+      withFills(
+        mergeCounts(bucketByDuration(tracks), filtered, (t) => durationBucketLabel(t.durationMs)),
+        selection.duration ?? [],
+        () => DURATION_FILL
+      ),
+    [tracks, filtered, selection.duration]
   )
   const popularityRows = useMemo(
-    () => mergeCounts(bucketByPopularity(tracks), filtered, (t) => popularityBucketLabel(t.popularity)),
-    [tracks, filtered]
+    () =>
+      withFills(
+        mergeCounts(bucketByPopularity(tracks), filtered, (t) => popularityBucketLabel(t.popularity)),
+        selection.popularity ?? [],
+        () => POPULARITY_FILL
+      ),
+    [tracks, filtered, selection.popularity]
   )
-
-  const decSel = selection.decade ?? []
-  const genSel = selection.genre ?? []
-  const durSel = selection.duration ?? []
-  const popSel = selection.popularity ?? []
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -438,22 +456,9 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
               nameKey="label"
               outerRadius={80}
               label
+              cursor="pointer"
               onClick={(d: any) => onToggle('decade', d.label)}
-            >
-              {decadeRows.map((r, i) => (
-                <Cell
-                  key={i}
-                  fill={
-                    decSel.length === 0
-                      ? PIE_COLORS[i % PIE_COLORS.length]
-                      : decSel.includes(r.label)
-                        ? PIE_COLORS[i % PIE_COLORS.length]
-                        : '#1f2937'
-                  }
-                  cursor="pointer"
-                />
-              ))}
-            </Pie>
+            />
             <Tooltip formatter={tooltipFormatter} />
           </PieChart>
         </ResponsiveContainer>
@@ -469,11 +474,7 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
               dataKey="total"
               cursor="pointer"
               onClick={(d: any) => onToggle('genre', d.label)}
-            >
-              {genreRows.map((r, i) => (
-                <Cell key={i} fill={fillFor(genSel, r.label)} />
-              ))}
-            </Bar>
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -488,11 +489,7 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
               dataKey="total"
               cursor="pointer"
               onClick={(d: any) => onToggle('duration', d.label)}
-            >
-              {durationRows.map((r, i) => (
-                <Cell key={i} fill={fillFor(durSel, r.label, '#5DADE2')} />
-              ))}
-            </Bar>
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -507,11 +504,7 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
               dataKey="total"
               cursor="pointer"
               onClick={(d: any) => onToggle('popularity', d.label)}
-            >
-              {popularityRows.map((r, i) => (
-                <Cell key={i} fill={fillFor(popSel, r.label, '#F39C12')} />
-              ))}
-            </Bar>
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -519,9 +512,16 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
   )
 }
 
-function fillFor(selected: string[], label: string, baseFill: string = SELECTED_FILL): string {
-  if (selected.length === 0) return baseFill
-  return selected.includes(label) ? baseFill : UNSELECTED_FILL
+function withFills(
+  rows: { label: string; total: number; matched: number }[],
+  selected: string[],
+  baseFor: (r: { label: string }, i: number) => string
+): Row[] {
+  return rows.map((r, i) => {
+    const base = baseFor(r, i)
+    const fill = selected.length === 0 || selected.includes(r.label) ? base : UNSELECTED_FILL
+    return { ...r, fill }
+  })
 }
 
 function tooltipFormatter(value: any, _name: string, item: any): [string, string] {
@@ -533,7 +533,7 @@ function mergeCounts(
   buckets: { label: string; count: number }[],
   filtered: Track[],
   pickLabel: (t: Track) => string
-): Row[] {
+): { label: string; total: number; matched: number }[] {
   const matchedByLabel = new Map<string, number>()
   for (const t of filtered) {
     const lbl = pickLabel(t)
@@ -549,7 +549,7 @@ function mergeCounts(
 function mergeGenreCounts(
   buckets: { label: string; count: number }[],
   filtered: Track[]
-): Row[] {
+): { label: string; total: number; matched: number }[] {
   const matchedByLabel = new Map<string, number>()
   for (const t of filtered) {
     if (t.genres.length === 0) {
