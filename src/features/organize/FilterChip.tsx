@@ -1,7 +1,8 @@
-import { Badge } from '@/components/ui/badge'
+import { Badge, badgeVariants } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Filter, FilterKind, FilterMode } from '@/domain/filters'
+import { cn } from '@/lib/utils'
 
 const VISIBLE_VALUES = 2
 
@@ -29,9 +30,12 @@ export function FilterChip({ filter, onSetMode, onRemoveValue, onRemove }: Props
             {summary}
           </Badge>
         </PopoverTrigger>
-        <Badge
-          variant={variant}
-          className="cursor-pointer rounded-l-none border-l border-background/40"
+        <button
+          type="button"
+          className={cn(
+            badgeVariants({ variant }),
+            'cursor-pointer rounded-l-none border-l border-background/40'
+          )}
           onClick={(e) => {
             e.stopPropagation()
             onRemove(filter.kind)
@@ -39,7 +43,7 @@ export function FilterChip({ filter, onSetMode, onRemoveValue, onRemove }: Props
           aria-label={`Remove ${filter.kind} filter`}
         >
           ×
-        </Badge>
+        </button>
       </div>
       <PopoverContent align="start" className="space-y-3">
         <div className="flex items-center justify-between">
