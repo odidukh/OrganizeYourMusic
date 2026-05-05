@@ -84,7 +84,9 @@ async function attempt(url: string, signal: AbortSignal): Promise<AttemptResult>
   try {
     res = await fetch(url, { signal })
   } catch (err) {
-    if ((err as Error).name === 'AbortError') throw new LastfmAbortError()
+    if (signal.aborted || (err as Error).name === 'AbortError') {
+      throw new LastfmAbortError()
+    }
     return { kind: 'transient', message: 'network error' }
   }
 
@@ -95,7 +97,10 @@ async function attempt(url: string, signal: AbortSignal): Promise<AttemptResult>
   let json: RawTopTagsResponse
   try {
     json = await res.json()
-  } catch {
+  } catch (err) {
+    if (signal.aborted || (err as Error)?.name === 'AbortError') {
+      throw new LastfmAbortError()
+    }
     return { kind: 'transient', message: 'invalid JSON' }
   }
 
