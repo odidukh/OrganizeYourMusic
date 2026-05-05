@@ -190,14 +190,25 @@ function mergeGenreCounts(
   buckets: { label: string; count: number }[],
   filtered: Track[]
 ): { label: string; total: number; matched: number }[] {
+  const topLabels = new Set(
+    buckets.map((b) => b.label).filter((l) => l !== 'other' && l !== '(no genre)')
+  )
+  const hasOther = buckets.some((b) => b.label === 'other')
   const matchedByLabel = new Map<string, number>()
   for (const t of filtered) {
     if (t.genres.length === 0) {
       matchedByLabel.set('(no genre)', (matchedByLabel.get('(no genre)') ?? 0) + 1)
       continue
     }
+    let anyTop = false
     for (const g of t.genres) {
-      matchedByLabel.set(g, (matchedByLabel.get(g) ?? 0) + 1)
+      if (topLabels.has(g)) {
+        matchedByLabel.set(g, (matchedByLabel.get(g) ?? 0) + 1)
+        anyTop = true
+      }
+    }
+    if (!anyTop && hasOther) {
+      matchedByLabel.set('other', (matchedByLabel.get('other') ?? 0) + 1)
     }
   }
   return buckets.map((b) => ({
