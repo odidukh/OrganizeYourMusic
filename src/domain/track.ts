@@ -38,16 +38,18 @@ function parseReleaseYear(releaseDate: string): number {
 
 export function normalizeTrack(raw: RawTrack, addedAt: string | null = null): Track | null {
   if (!raw || !raw.id) return null
+  const artists = raw.artists ?? []
+  const releaseDate = raw.album?.release_date ?? ''
   return {
     id: raw.id,
     uri: raw.uri,
     name: raw.name,
-    artistNames: raw.artists.map((a) => a.name),
-    artistIds: raw.artists.map((a) => a.id),
+    artistNames: artists.map((a) => a.name),
+    artistIds: artists.map((a) => a.id),
     album: {
-      name: raw.album.name,
-      releaseDate: raw.album.release_date,
-      releaseYear: parseReleaseYear(raw.album.release_date),
+      name: raw.album?.name ?? '',
+      releaseDate,
+      releaseYear: parseReleaseYear(releaseDate),
     },
     durationMs: raw.duration_ms,
     popularity: raw.popularity ?? 0,
