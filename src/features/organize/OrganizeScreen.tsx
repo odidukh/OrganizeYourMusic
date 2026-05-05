@@ -194,10 +194,11 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack, onTrac
         </div>
       </div>
 
-      {lastRun && lastRun.tracks.length > 0 && (
+      {lastRun && (lastRun.running !== null || lastRun.tracks.length > 0) && (
         <LastRunTable
           tracks={lastRun.tracks}
           previousByTrackId={lastRun.previousByTrackId}
+          running={lastRun.running}
           onDismiss={() => setLastRun(null)}
         />
       )}

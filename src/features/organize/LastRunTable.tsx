@@ -1,14 +1,16 @@
 import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Track } from '@/domain/track'
+import type { InferenceProgress } from '@/domain/genreInference'
 
 type Props = {
   tracks: Track[]
   previousByTrackId: ReadonlyMap<string, ReadonlySet<string>>
+  running: InferenceProgress | null
   onDismiss: () => void
 }
 
-export function LastRunTable({ tracks, previousByTrackId, onDismiss }: Props) {
+export function LastRunTable({ tracks, previousByTrackId, running, onDismiss }: Props) {
   const rows = useMemo(
     () =>
       tracks.map((t) => {
@@ -21,13 +23,26 @@ export function LastRunTable({ tracks, previousByTrackId, onDismiss }: Props) {
 
   return (
     <section className="mt-6 rounded border">
-      <header className="flex items-center justify-between border-b px-4 py-2">
-        <h3 className="text-sm font-semibold">
-          Last run · {tracks.length.toLocaleString()} tracks enriched
+      <header className="flex items-center justify-between border-b px-4 py-2 gap-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          {running ? (
+            <>
+              <span
+                aria-hidden
+                className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse"
+              />
+              Processing {running.done.toLocaleString()}/{running.total.toLocaleString()} artists ·{' '}
+              {tracks.length.toLocaleString()} tracks enriched so far
+            </>
+          ) : (
+            <>Last run · {tracks.length.toLocaleString()} tracks enriched</>
+          )}
         </h3>
-        <Button variant="ghost" size="sm" onClick={onDismiss}>
-          Dismiss
-        </Button>
+        {!running && (
+          <Button variant="ghost" size="sm" onClick={onDismiss}>
+            Dismiss
+          </Button>
+        )}
       </header>
 
       <div className="grid grid-cols-[2fr_1.5fr_3fr] gap-2 px-4 py-2 text-xs font-semibold border-b bg-muted/30">
