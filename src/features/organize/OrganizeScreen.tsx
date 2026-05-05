@@ -68,11 +68,11 @@ export function OrganizeScreen({ source, tracks, truncated, onSave, onBack }: Pr
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[400px_1fr]">
-        <div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="min-w-0">
           <Charts tracks={filteredTracks} onSelect={addFilter} />
         </div>
-        <div className="flex flex-col h-[70vh]">
+        <div className="flex flex-col h-[70vh] min-w-0">
           <TrackTable tracks={filteredTracks} search={search} onSearchChange={setSearch} />
           <div className="flex items-center justify-between pt-3 mt-3 border-t">
             <span className="text-sm text-muted-foreground">

@@ -37,7 +37,7 @@ export function Charts({ tracks, onSelect }: Props) {
   const popularity = useMemo(() => bucketByPopularity(tracks), [tracks])
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6">
       <ChartCard title="By decade">
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
@@ -60,9 +60,9 @@ export function Charts({ tracks, onSelect }: Props) {
 
       <ChartCard title="Top genres">
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={genres} layout="vertical" margin={{ left: 60 }}>
+          <BarChart data={genres} layout="vertical" margin={{ left: 8, right: 16 }}>
             <XAxis type="number" />
-            <YAxis dataKey="label" type="category" width={120} />
+            <YAxis dataKey="label" type="category" width={110} tick={{ fontSize: 11 }} />
             <Tooltip />
             <Bar
               dataKey="count"
