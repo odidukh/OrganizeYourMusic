@@ -1,5 +1,5 @@
 import { spotifyFetch } from '@/api/spotifyClient'
-import { paginate, batchedFetch, type ProgressUpdate } from '@/api/pagination'
+import { paginate, batchedFetch, HARD_TRACK_CAP, type ProgressUpdate } from '@/api/pagination'
 import { dedupeTracks, mergeArtistGenres, normalizePlaylistItems, normalizeSavedItems, type Track } from './track'
 
 export type Source =
@@ -23,8 +23,8 @@ type PlaylistRef = { id: string; owner: Owner }
 export function parsePlaylistInput(input: string): string | null {
   const trimmed = input.trim()
   if (!trimmed) return null
-  // bare ID (22 alphanumeric chars typical)
-  if (/^[A-Za-z0-9]+$/.test(trimmed) && trimmed.length >= 16) return trimmed
+  // bare ID — Spotify uses 22-char base62
+  if (/^[A-Za-z0-9]{22}$/.test(trimmed)) return trimmed
   // spotify URI
   const uriMatch = trimmed.match(/^spotify:playlist:([A-Za-z0-9]+)$/)
   if (uriMatch) return uriMatch[1]
@@ -68,18 +68,34 @@ async function fetchPlaylistTracks(
   return normalizePlaylistItems(result.items)
 }
 
+const MAX_USER_PLAYLISTS = 1000
+
 async function fetchUserPlaylists(signal?: AbortSignal): Promise<PlaylistRef[]> {
   const all: PlaylistRef[] = []
   let next: string | null = `/me/playlists?limit=50&offset=0`
   let offset = 0
-  while (next) {
+  while (next && all.length < MAX_USER_PLAYLISTS) {
     const page = await spotifyFetch<{ items: PlaylistRef[]; next: string | null; total: number }>(next, { signal })
     all.push(...page.items)
     if (!page.next) break
     offset += 50
     next = `/me/playlists?limit=50&offset=${offset}`
   }
-  return all
+  return all.slice(0, MAX_USER_PLAYLISTS)
+}
+
+async function partitionByOwner(
+  userId: string,
+  signal?: AbortSignal
+): Promise<{ owned: string[]; followed: string[] }> {
+  const playlists = await fetchUserPlaylists(signal)
+  const owned: string[] = []
+  const followed: string[] = []
+  for (const p of playlists) {
+    if (p.owner.id === userId) owned.push(p.id)
+    else followed.push(p.id)
+  }
+  return { owned, followed }
 }
 
 async function fetchTracksFromMany(
@@ -102,8 +118,7 @@ async function fetchAdded(
   onProgress: (e: ProgressEvent) => void,
   signal?: AbortSignal
 ): Promise<Track[]> {
-  const playlists = await fetchUserPlaylists(signal)
-  const owned = playlists.filter((p) => p.owner.id === userId).map((p) => p.id)
+  const { owned } = await partitionByOwner(userId, signal)
   return fetchTracksFromMany(owned, onProgress, signal)
 }
 
@@ -112,8 +127,7 @@ async function fetchFollow(
   onProgress: (e: ProgressEvent) => void,
   signal?: AbortSignal
 ): Promise<Track[]> {
-  const playlists = await fetchUserPlaylists(signal)
-  const followed = playlists.filter((p) => p.owner.id !== userId).map((p) => p.id)
+  const { followed } = await partitionByOwner(userId, signal)
   return fetchTracksFromMany(followed, onProgress, signal)
 }
 
@@ -171,18 +185,19 @@ export async function fetchTracksForSource(
     tracks = await fetchFollow(userId, onProgress, signal)
     reportedTotal = tracks.length
   } else {
-    // 'all'
+    // 'all' — fetch saved + own + followed playlists with a single /me/playlists pass.
     const saved = await fetchSaved(onProgress, signal)
-    const added = await fetchAdded(userId, onProgress, signal)
-    const follow = await fetchFollow(userId, onProgress, signal)
+    const { owned, followed } = await partitionByOwner(userId, signal)
+    const added = await fetchTracksFromMany(owned, onProgress, signal)
+    const follow = await fetchTracksFromMany(followed, onProgress, signal)
     tracks = dedupeTracks([...saved.tracks, ...added, ...follow])
-    truncated = saved.truncated || tracks.length >= 5000
+    truncated = saved.truncated
     reportedTotal = tracks.length
   }
 
-  // Cap to 5000 universally
-  if (tracks.length > 5000) {
-    tracks = tracks.slice(0, 5000)
+  // Cap universally
+  if (tracks.length > HARD_TRACK_CAP) {
+    tracks = tracks.slice(0, HARD_TRACK_CAP)
     truncated = true
   }
 
