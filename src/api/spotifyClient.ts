@@ -69,13 +69,17 @@ type RequestOpts = {
 const SPOTIFY_BASE = 'https://api.spotify.com/v1'
 
 export async function spotifyFetch<T>(path: string, opts: RequestOpts = {}): Promise<T> {
-  return spotifyFetchInternal<T>(path, opts, /*isRetry*/ false)
+  return spotifyFetchInternal<T>(path, opts, /*isRetry*/ false, /*attempts*/ 0)
 }
+
+const MAX_RATE_LIMIT_RETRIES = 3
+const MAX_RETRY_AFTER_SECONDS = 60
 
 async function spotifyFetchInternal<T>(
   path: string,
   opts: RequestOpts,
-  isRetry: boolean
+  isRetry: boolean,
+  attempts: number
 ): Promise<T> {
   const token = await ensureFreshToken()
   const url = path.startsWith('http') ? path : SPOTIFY_BASE + path
@@ -94,13 +98,20 @@ async function spotifyFetchInternal<T>(
 
   if (res.status === 401 && !isRetry) {
     state.accessToken = null
-    return spotifyFetchInternal<T>(path, opts, true)
+    return spotifyFetchInternal<T>(path, opts, true, attempts)
   }
 
   if (res.status === 429) {
-    const retryAfter = Number(res.headers.get('Retry-After') ?? '1')
-    await sleep(retryAfter * 1000)
-    return spotifyFetchInternal<T>(path, opts, isRetry)
+    if (attempts >= MAX_RATE_LIMIT_RETRIES) {
+      throw new SpotifyError('Spotify 429: rate limit exceeded after retries', 429, true)
+    }
+    const raw = res.headers.get('Retry-After')
+    const parsed = Number(raw)
+    const seconds = Number.isFinite(parsed) && parsed >= 0
+      ? Math.min(parsed, MAX_RETRY_AFTER_SECONDS)
+      : 1
+    await sleep(seconds * 1000, opts.signal)
+    return spotifyFetchInternal<T>(path, opts, isRetry, attempts + 1)
   }
 
   if (!res.ok) {
@@ -116,6 +127,20 @@ async function spotifyFetchInternal<T>(
   return (await res.json()) as T
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms))
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason instanceof Error ? signal.reason : new Error('Aborted'))
+      return
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(signal?.reason instanceof Error ? signal.reason : new Error('Aborted'))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
