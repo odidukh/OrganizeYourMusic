@@ -9,6 +9,7 @@ import {
   emptyFilterState,
   matchesFilters,
   removeFilter,
+  selectedValues as selectedFor,
   toggleValue,
   type FilterKind,
   type FilterState,
@@ -83,7 +84,17 @@ export function OrganizeScreen({ user, source, tracks, truncated, onBack }: Prop
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[320px_minmax(0,1fr)]">
         <div className="min-w-0">
-          <Charts tracks={filteredTracks} onSelect={onToggle} />
+          <Charts
+            tracks={tracks}
+            filtered={filteredTracks}
+            selection={{
+              decade: selectedFor(state, 'decade'),
+              genre: selectedFor(state, 'genre'),
+              duration: selectedFor(state, 'duration'),
+              popularity: selectedFor(state, 'popularity'),
+            }}
+            onToggle={onToggle}
+          />
         </div>
         <div className="flex flex-col h-[70vh] min-w-0">
           <TrackTable tracks={filteredTracks} search={search} onSearchChange={setSearch} />
