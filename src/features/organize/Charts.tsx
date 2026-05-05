@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import {
   Bar,
   BarChart,
+  Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -18,6 +19,7 @@ import {
   decadeForYear,
   durationBucketLabel,
   popularityBucketLabel,
+  type Bucket,
 } from '@/domain/bucketing'
 import type { FilterKind } from '@/domain/filters'
 
@@ -39,7 +41,7 @@ type Props = {
   onToggle: (kind: ChartKind, label: string) => void
 }
 
-type Row = { label: string; total: number; matched: number; fill: string }
+type Row = { label: string; total: number; matched: number; fill: string; inferredRatio: number }
 
 export function Charts({ tracks, filtered, selection, onToggle }: Props) {
   const decadeRows = useMemo(
@@ -81,6 +83,21 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
 
   return (
     <div className="grid grid-cols-1 gap-6">
+      <svg width="0" height="0" className="absolute" aria-hidden="true">
+        <defs>
+          <pattern
+            id="oym-stripe"
+            patternUnits="userSpaceOnUse"
+            width="6"
+            height="6"
+            patternTransform="rotate(45)"
+          >
+            <rect width="6" height="6" fill="currentColor" opacity="0.0" />
+            <line x1="0" y1="0" x2="0" y2="6" stroke="white" strokeWidth="2" strokeOpacity="0.55" />
+          </pattern>
+        </defs>
+      </svg>
+
       <ChartCard title="By decade">
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
@@ -110,7 +127,16 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
               cursor="pointer"
               /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
               onClick={(d: any) => onToggle('genre', (d as Row).label)}
-            />
+            >
+              {genreRows.map((row, i) => (
+                <Cell
+                  key={`g-${i}`}
+                  fill={row.inferredRatio >= 0.5 ? 'url(#oym-stripe)' : row.fill}
+                  stroke={row.inferredRatio >= 0.5 ? row.fill : undefined}
+                  strokeWidth={row.inferredRatio >= 0.5 ? 2 : 0}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -151,14 +177,15 @@ export function Charts({ tracks, filtered, selection, onToggle }: Props) {
 }
 
 function withFills(
-  rows: { label: string; total: number; matched: number }[],
+  rows: { label: string; total: number; matched: number; inferredOnly?: number }[],
   selected: string[],
   baseFor: (r: { label: string }, i: number) => string
 ): Row[] {
   return rows.map((r, i) => {
     const base = baseFor(r, i)
     const fill = selected.length === 0 || selected.includes(r.label) ? base : UNSELECTED_FILL
-    return { ...r, fill }
+    const inferredRatio = r.total > 0 ? Math.min(1, (r.inferredOnly ?? 0) / r.total) : 0
+    return { ...r, fill, inferredRatio }
   })
 }
 
@@ -187,21 +214,22 @@ function mergeCounts(
 }
 
 function mergeGenreCounts(
-  buckets: { label: string; count: number }[],
+  buckets: Bucket[],
   filtered: Track[]
-): { label: string; total: number; matched: number }[] {
+): { label: string; total: number; matched: number; inferredOnly?: number }[] {
   const topLabels = new Set(
     buckets.map((b) => b.label).filter((l) => l !== 'other' && l !== '(no genre)')
   )
   const hasOther = buckets.some((b) => b.label === 'other')
   const matchedByLabel = new Map<string, number>()
   for (const t of filtered) {
-    if (t.genres.length === 0) {
+    const merged = unionForChart(t)
+    if (merged.length === 0) {
       matchedByLabel.set('(no genre)', (matchedByLabel.get('(no genre)') ?? 0) + 1)
       continue
     }
     let anyTop = false
-    for (const g of t.genres) {
+    for (const g of merged) {
       if (topLabels.has(g)) {
         matchedByLabel.set(g, (matchedByLabel.get(g) ?? 0) + 1)
         anyTop = true
@@ -215,7 +243,14 @@ function mergeGenreCounts(
     label: b.label,
     total: b.count,
     matched: matchedByLabel.get(b.label) ?? 0,
+    inferredOnly: b.inferredOnly,
   }))
+}
+
+function unionForChart(t: Track): string[] {
+  if (t.inferredGenres.length === 0) return t.genres
+  if (t.genres.length === 0) return t.inferredGenres
+  return Array.from(new Set([...t.genres, ...t.inferredGenres]))
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {

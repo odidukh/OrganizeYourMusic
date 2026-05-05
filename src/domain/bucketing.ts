@@ -1,6 +1,6 @@
 import type { Track } from './track'
 
-export type Bucket = { label: string; count: number }
+export type Bucket = { label: string; count: number; inferredOnly?: number }
 
 const DECADES = [1960, 1970, 1980, 1990, 2000, 2010, 2020] as const
 
@@ -38,28 +38,43 @@ export function topGenres(tracks: Track[], topN = 15): Set<string> {
 }
 
 export function bucketByGenre(tracks: Track[], topN = 15): Bucket[] {
-  const counts = new Map<string, number>()
+  const total = new Map<string, number>()
+  const inferredOnly = new Map<string, number>()
   for (const t of tracks) {
-    const merged = unionGenres(t)
-    if (merged.length === 0) {
-      counts.set('(no genre)', (counts.get('(no genre)') ?? 0) + 1)
+    const real = t.genres
+    const inferred = t.inferredGenres
+    if (real.length === 0 && inferred.length === 0) {
+      total.set('(no genre)', (total.get('(no genre)') ?? 0) + 1)
       continue
     }
-    for (const g of merged) {
-      counts.set(g, (counts.get(g) ?? 0) + 1)
+    const seen = new Set<string>()
+    for (const g of real) {
+      if (seen.has(g)) continue
+      seen.add(g)
+      total.set(g, (total.get(g) ?? 0) + 1)
+    }
+    for (const g of inferred) {
+      if (seen.has(g)) continue
+      seen.add(g)
+      total.set(g, (total.get(g) ?? 0) + 1)
+      if (real.length === 0) {
+        inferredOnly.set(g, (inferredOnly.get(g) ?? 0) + 1)
+      }
     }
   }
-  const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])
-  const top = sorted.slice(0, topN).map(([label, count]) => ({ label, count }))
-  const rest = sorted.slice(topN).reduce((sum, [, c]) => sum + c, 0)
-  if (rest > 0) top.push({ label: 'other', count: rest })
+  const sorted = Array.from(total.entries()).sort((a, b) => b[1] - a[1])
+  const top: Bucket[] = sorted.slice(0, topN).map(([label, count]) => ({
+    label,
+    count,
+    inferredOnly: inferredOnly.get(label) ?? 0,
+  }))
+  const restCount = sorted.slice(topN).reduce((sum, [, c]) => sum + c, 0)
+  const restInferred = sorted.slice(topN).reduce(
+    (sum, [label]) => sum + (inferredOnly.get(label) ?? 0),
+    0
+  )
+  if (restCount > 0) top.push({ label: 'other', count: restCount, inferredOnly: restInferred })
   return top
-}
-
-function unionGenres(t: Track): string[] {
-  if (t.inferredGenres.length === 0) return t.genres
-  if (t.genres.length === 0) return t.inferredGenres
-  return Array.from(new Set([...t.genres, ...t.inferredGenres]))
 }
 
 const DURATION_BUCKETS: { label: string; minSec: number; maxSec: number }[] = [
