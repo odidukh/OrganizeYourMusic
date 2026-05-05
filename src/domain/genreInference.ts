@@ -19,6 +19,7 @@ export type InferenceParams = {
   whitelist: ReadonlySet<string>
   signal: AbortSignal
   onProgress?: (p: InferenceProgress) => void
+  onPartial?: (perArtist: ReadonlyMap<string, string[]>) => void
 }
 
 export function candidateArtistIds(tracks: Track[]): string[] {
@@ -42,7 +43,7 @@ export function artistNamesById(tracks: Track[]): Map<string, string> {
 }
 
 export async function inferGenres(params: InferenceParams): Promise<InferenceResult> {
-  const { tracks, candidateArtistIds: candidates, whitelist, signal, onProgress } = params
+  const { tracks, candidateArtistIds: candidates, whitelist, signal, onProgress, onPartial } = params
   const stored = cache.read()
   const nameById = artistNamesById(tracks)
 
@@ -53,6 +54,12 @@ export async function inferGenres(params: InferenceParams): Promise<InferenceRes
 
   const updates: cache.InferenceCache = {}
 
+  const perArtist = new Map<string, string[]>()
+  for (const id of candidates) {
+    if (id in stored) perArtist.set(id, stored[id])
+  }
+  if (perArtist.size > 0) onPartial?.(perArtist)
+
   for (const id of uncached) {
     if (signal.aborted) {
       cache.write(cache.merge(stored, updates))
@@ -61,6 +68,7 @@ export async function inferGenres(params: InferenceParams): Promise<InferenceRes
     const name = nameById.get(id)
     if (!name) {
       updates[id] = []
+      perArtist.set(id, [])
       done++
       onProgress?.({ done, total })
       continue
@@ -69,7 +77,9 @@ export async function inferGenres(params: InferenceParams): Promise<InferenceRes
       const raw = await fetchArtistTags(name, signal)
       const kept = filterTags(raw, whitelist)
       updates[id] = kept
+      perArtist.set(id, kept)
       fetched++
+      if (kept.length > 0) onPartial?.(perArtist)
     } catch (err) {
       if (err instanceof LastfmAbortError) {
         cache.write(cache.merge(stored, updates))
@@ -86,14 +96,7 @@ export async function inferGenres(params: InferenceParams): Promise<InferenceRes
     if (done < total) await sleep(THROTTLE_MS, signal)
   }
 
-  const merged = cache.merge(stored, updates)
-  cache.write(merged)
-
-  const perArtist = new Map<string, string[]>()
-  for (const id of candidates) {
-    const tags = merged[id]
-    if (tags) perArtist.set(id, tags)
-  }
+  cache.write(cache.merge(stored, updates))
 
   return {
     perArtist,

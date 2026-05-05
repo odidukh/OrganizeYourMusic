@@ -96,6 +96,7 @@ export function FillGenresButton({ tracks, onTracksUpdate, onLastRunChange }: Pr
     for (const t of current) for (const g of t.genres) libraryGenres.push(g)
     const whitelist = buildWhitelist(libraryGenres)
 
+    let lastEmittedFilledCount = 0
     try {
       const result = await inferGenres({
         tracks: current,
@@ -106,6 +107,14 @@ export function FillGenresButton({ tracks, onTracksUpdate, onLastRunChange }: Pr
           setState((prev) =>
             prev.kind === 'running' ? { ...prev, progress } : prev
           ),
+        onPartial: (perArtist) => {
+          const partial = applyInference(current, perArtist)
+          const filledTracks = diffFilled(partial, previousByTrackId)
+          if (filledTracks.length > lastEmittedFilledCount) {
+            lastEmittedFilledCount = filledTracks.length
+            onLastRunChange?.({ tracks: filledTracks, previousByTrackId })
+          }
+        },
       })
       const next = applyInference(current, result.perArtist)
       onTracksUpdate(next)
